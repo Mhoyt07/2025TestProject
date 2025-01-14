@@ -14,6 +14,7 @@ import com.revrobotics.RelativeEncoder;
 import com.revrobotics.spark.SparkBase.PersistMode;
 import com.revrobotics.spark.SparkBase.ResetMode;
 
+import edu.wpi.first.math.VecBuilder;
 import edu.wpi.first.math.estimator.DifferentialDrivePoseEstimator;
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation2d;
@@ -21,6 +22,7 @@ import edu.wpi.first.math.kinematics.DifferentialDriveKinematics;
 import edu.wpi.first.wpilibj.Joystick;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
 import frc.robot.Constants;
+import frc.robot.LimelightHelpers;
 
 public class DriveTrain extends SubsystemBase {
   /** Creates a new DriveTrain. */
@@ -35,6 +37,8 @@ public class DriveTrain extends SubsystemBase {
   DifferentialDrivePoseEstimator pose_estimator;
   Pigeon2 gyro;
   DifferentialDriveKinematics kinematics;
+  LimelightHelpers.PoseEstimate mt2;
+  boolean do_reject_update;
   public DriveTrain() {
     r_motor = new SparkMax(0, MotorType.kBrushless);
     l_motor = new SparkMax(1, MotorType.kBrushless);
@@ -78,8 +82,8 @@ public class DriveTrain extends SubsystemBase {
     return gyro.getRotation2d();
   }
 
-  public double get_yaw() {
-    return gyro.getYaw();
+  public double get_yaw_rate() {
+    return gyro.getAngularVelocityZWorld().getValueAsDouble();
   }
 
   //gets encoder values
@@ -95,5 +99,18 @@ public class DriveTrain extends SubsystemBase {
 
     //update pose estimator
     pose_estimator.update(get_rotation_2d(), get_distances()[0], get_distances()[1]);
+    //can be done with network tables?
+    LimelightHelpers.SetRobotOrientation("limelight", pose_estimator.getEstimatedPosition().getRotation().getDegrees(), get_yaw_rate(), 0, 0, 0, 0);
+    mt2 = LimelightHelpers.getBotPoseEstimate_wpiBlue_MegaTag2("limelight");
+      if (Math.abs(get_yaw_rate()) > 720) {
+        do_reject_update = true;
+      } else if (mt2.tagCount== 0) {
+        do_reject_update = true;
+      } else {
+        do_reject_update = false;
+      } if (!do_reject_update) {
+        pose_estimator.setVisionMeasurementStdDevs(VecBuilder.fill(.7,.7,9999999));
+        pose_estimator.addVisionMeasurement(mt2.pose, mt2.timestampSeconds);
+      }
   }
 }
