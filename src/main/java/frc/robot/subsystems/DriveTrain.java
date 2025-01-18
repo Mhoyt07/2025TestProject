@@ -20,6 +20,8 @@ import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.kinematics.DifferentialDriveKinematics;
 import edu.wpi.first.wpilibj.Joystick;
+import edu.wpi.first.wpilibj.smartdashboard.Field2d;
+import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
 import frc.robot.Constants;
 import frc.robot.LimelightHelpers;
@@ -39,12 +41,13 @@ public class DriveTrain extends SubsystemBase {
   DifferentialDriveKinematics kinematics;
   LimelightHelpers.PoseEstimate mt2;
   boolean do_reject_update;
+  Field2d field;
   public DriveTrain() {
     r_motor = new SparkMax(0, MotorType.kBrushless);
     l_motor = new SparkMax(1, MotorType.kBrushless);
 
-    r_encoder = r_motor.getAlternateEncoder();
-    l_encoder = l_motor.getAlternateEncoder();
+    r_encoder = r_motor.getEncoder();
+    l_encoder = l_motor.getEncoder();
 
     config_r
       .inverted(false)
@@ -63,6 +66,8 @@ public class DriveTrain extends SubsystemBase {
     PersistMode.kNoPersistParameters);// when powercycled it will not store data in volatile storage
 
     gyro = new Pigeon2(0);
+
+    field = new Field2d();
 
     kinematics = new DifferentialDriveKinematics(Constants.drive.width);
     //the new Pose2d() might need a diffedrent rotation 2d
@@ -91,6 +96,10 @@ public class DriveTrain extends SubsystemBase {
     return new double[] {l_encoder.getPosition(), r_encoder.getPosition()};
   }
 
+  public Pose2d get_pose() {
+    return pose_estimator.getEstimatedPosition();
+  }
+
   
 
   @Override
@@ -104,7 +113,7 @@ public class DriveTrain extends SubsystemBase {
     mt2 = LimelightHelpers.getBotPoseEstimate_wpiBlue_MegaTag2("limelight");
       if (Math.abs(get_yaw_rate()) > 720) {
         do_reject_update = true;
-      } else if (mt2.tagCount== 0) {
+      } else if (mt2.tagCount == 0) {
         do_reject_update = true;
       } else {
         do_reject_update = false;
@@ -112,5 +121,7 @@ public class DriveTrain extends SubsystemBase {
         pose_estimator.setVisionMeasurementStdDevs(VecBuilder.fill(.7,.7,9999999));
         pose_estimator.addVisionMeasurement(mt2.pose, mt2.timestampSeconds);
       }
+    field.setRobotPose(get_pose());
+    SmartDashboard.putData("field", field);
   }
 }
